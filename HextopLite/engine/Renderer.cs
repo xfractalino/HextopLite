@@ -15,8 +15,14 @@ public class Renderer
     private IDXGISwapChain _swapChain = null!;
     private IDXGISurface1 _dxgiSurface = null!;
 
+    private Windows.UI.Composition.Compositor _compositor;
+    private Windows.UI.Composition.Desktop.DesktopWindowTarget _target;
+
     private int _width, _height;
-    private IntPtr _hextopHwnd;
+    private nint _parentHwnd;
+    private nint _hextopHwnd;
+
+    private nint _dqController;
     
     private volatile int _running;
 
@@ -42,15 +48,36 @@ public class Renderer
         Interlocked.Exchange(ref _running, 1);
 
         var renderer = new Thread(Run);
+        renderer.SetApartmentState(ApartmentState.STA);
         renderer.Start();
         renderer.Join();
     }
 
     private void Init()
     {
-        var workerWHwnd = ProgmanSupervisor.Instance.WorkerWHwnd;
+        var progmanHwnd = ProgmanSupervisor.Instance.ProgmanHwnd;
         
-        User32.GetClientRect(workerWHwnd, out var rect);
+        var progmanExStyle = User32.GetWindowLongPtr(progmanHwnd, User32.GWL_EXSTYLE);
+        if ((progmanExStyle & User32.WS_EX_NOREDIRECTIONBITMAP) != 0)
+        {
+            _parentHwnd = progmanHwnd;
+        }
+        else
+        {
+            _parentHwnd = ProgmanSupervisor.Instance.WorkerWHwnd;
+        }
+        
+        var options = new InteropCommons.DispatcherQueueOptions
+        {
+            dwSize = (uint)Marshal.SizeOf<InteropCommons.DispatcherQueueOptions>(),
+            threadType = 2,    // DQTYPE_THREAD_CURRENT
+            apartmentType = 0  // DQTAT_COM_NONE
+        };
+        Marshal.ThrowExceptionForHR(InteropCommons.CreateDispatcherQueueController(options, out _dqController));
+        
+        Console.WriteLine("Found target hwnd: {0:X}", _parentHwnd);
+        
+        User32.GetClientRect(_parentHwnd, out var rect);
         rect.ToExtents(out _width, out _height);
         
         var wndClass = new User32.WNDCLASSEX
@@ -64,60 +91,31 @@ public class Renderer
         User32.RegisterClassEx(ref wndClass);
 
         _hextopHwnd = User32.CreateWindowEx(
-            0, "HextopWindow", null!,
+            User32.WS_EX_NOREDIRECTIONBITMAP,
+            "HextopWindow", null!,
             User32.WS_VISIBLE | User32.WS_POPUP,
             0, 0, _width, _height,
-            IntPtr.Zero,
-            IntPtr.Zero, IntPtr.Zero, IntPtr.Zero
+            0, 0, 0, 0
         );
+        
+        _compositor = new Windows.UI.Composition.Compositor();
+        var interop = WinRT.CastExtensions.As<ICompositorDesktopInterop>(_compositor);
+        interop.CreateDesktopWindowTarget(_hextopHwnd, false, out var ptr);
+        _target = Windows.UI.Composition.Desktop.DesktopWindowTarget.FromAbi(ptr);
 
-        var swapChainDesc = new SwapChainDescription
-        {
-            BufferCount = 2,
-            BufferDescription = new ModeDescription((uint)_width, (uint)_height, Format.R8G8B8A8_UNorm),
-            BufferUsage = Usage.RenderTargetOutput,
-            OutputWindow = _hextopHwnd,
-            SampleDescription = new SampleDescription(1, 0),
-            SwapEffect = SwapEffect.Discard,
-            Windowed = true,
-        };
+        var visual = _compositor.CreateSpriteVisual();
+        visual.Size = new System.Numerics.Vector2(_width, _height);
+        visual.Brush = _compositor.CreateColorBrush(Windows.UI.Color.FromArgb(255, 255, 0, 0));
+        _target.Root = visual;
         
-        D3D11.D3D11CreateDeviceAndSwapChain(
-            null,
-            DriverType.Hardware,
-            DeviceCreationFlags.None,
-            new[] { FeatureLevel.Level_11_0 },
-            swapChainDesc,
-            out _swapChain!,
-            out _device!,
-            out _,
-            out _context!
-        );
-        
-        var textureDesc = new Texture2DDescription
-        {
-            Width = (uint)_width,
-            Height = (uint)_height,
-            MipLevels = 1,
-            ArraySize = 1,
-            Format = Format.B8G8R8A8_UNorm,
-            SampleDescription = new SampleDescription(1, 0),
-            Usage = ResourceUsage.Default,
-            BindFlags = BindFlags.RenderTarget,
-            MiscFlags = ResourceOptionFlags.GdiCompatible
-        };
-        
-        var renderTexture = _device.CreateTexture2D(textureDesc);
-        _renderTargetView = _device.CreateRenderTargetView(renderTexture);
-        _dxgiSurface = renderTexture.QueryInterface<IDXGISurface1>();
-        
-        User32.SetParent(_hextopHwnd, workerWHwnd);
-        
-        var style = User32.GetWindowLong(_hextopHwnd, User32.GWL_STYLE);
-        User32.SetWindowLong(_hextopHwnd, User32.GWL_STYLE,
-            (int)((style | User32.WS_CHILD) & ~User32.WS_POPUP));
-        User32.SetWindowPos(_hextopHwnd, 1, 0, 0, _width, _height,
-            User32.SWP_NOZORDER);
+        int style = User32.GetWindowLong(_hextopHwnd, User32.GWL_STYLE);
+        style |= (int)User32.WS_CHILD;
+        style &= (int)~User32.WS_POPUP;
+        User32.SetWindowLong(_hextopHwnd, User32.GWL_STYLE, style);
+        User32.SetParent(_hextopHwnd, _parentHwnd);
+
+        User32.SetWindowPos(_hextopHwnd, ProgmanSupervisor.Instance.ShellViewHwnd,
+            0, 0, _width, _height, User32.SWP_NOACTIVATE);
     }
 
     private void Run()
@@ -126,7 +124,7 @@ public class Renderer
         
         while (Interlocked.CompareExchange(ref _running, 1, 0) != 0 && User32.IsWindow(_hextopHwnd))
         {
-            while (User32.PeekMessage(out InteropCommons.MSG msg, _hextopHwnd, 0, 0, 1))
+            while (User32.PeekMessage(out InteropCommons.MSG msg, 0, 0, 0, 1))
             {
                 if (msg.message == User32.WM_DESTROY)
                     Stop();
@@ -134,9 +132,6 @@ public class Renderer
                 User32.TranslateMessage(ref msg);
                 User32.DispatchMessage(ref msg);
             }
-            
-            _context.ClearRenderTargetView(_renderTargetView, new Color4(0, 0, 0));
-            _swapChain.Present(1, PresentFlags.None);
         }
     }
 }

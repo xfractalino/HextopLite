@@ -26,4 +26,20 @@ public static class InteropCommons
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT { public int x, y; }
     // ReSharper enable InconsistentNaming
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DispatcherQueueOptions
+    {
+        public uint dwSize;
+        public int threadType;
+        public int apartmentType;
+    }
+    
+    [DllImport("CoreMessaging.dll")]
+    public static extern int CreateDispatcherQueueController(
+        DispatcherQueueOptions options,
+        out IntPtr dispatcherQueueController);
+    
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out int value, int size);
 }

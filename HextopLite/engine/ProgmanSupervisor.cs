@@ -9,6 +9,8 @@ public class ProgmanSupervisor
 
     private ProgmanSupervisor()
     {
+        Magic();
+        
         Console.WriteLine("New session of Progman Supervisor started.");
     }
 
@@ -48,6 +50,26 @@ public class ProgmanSupervisor
         private set;
     }
 
+    public IntPtr ShellViewHwnd
+    {
+        get
+        {
+            if (field == IntPtr.Zero)
+                FindShellView();
+
+            return field;
+        }
+        private set;
+    }
+
+    /// <summary>
+    ///   Invokes an undocumented message for progman that spawns a fresh WorkerW window behind the icons.
+    /// </summary>
+    private void Magic()
+    {
+        User32.SendMessage(ProgmanHwnd, MagicMessage, 0xD, 0x1);
+    }
+
     private void FindHwnd()
     {
         ProgmanHwnd = User32.FindWindow(ProgmanName, null!);
@@ -58,8 +80,11 @@ public class ProgmanSupervisor
 
     private void FindWorkerW()
     {
-        User32.SendMessage(ProgmanHwnd, MagicMessage, IntPtr.Zero, IntPtr.Zero);
-        
         WorkerWHwnd = User32.FindWindowEx(ProgmanHwnd, IntPtr.Zero, "WorkerW", null!);
+    }
+
+    private void FindShellView()
+    {
+        ShellViewHwnd = User32.FindWindowEx(ProgmanHwnd, IntPtr.Zero, "SHELLDLL_DefView", null!);
     }
 }
