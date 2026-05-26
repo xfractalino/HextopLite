@@ -159,7 +159,7 @@ public class Renderer
             CheckGpuState();
 #endif
             
-            _surfaceInterop.BeginDraw(IntPtr.Zero, ref textureGuid, out var texturePtr, out var offset);
+            _surfaceInterop.BeginDraw(0, ref textureGuid, out var texturePtr, out var offset);
             Render(texturePtr, offset);
             _surfaceInterop.EndDraw();
             

@@ -24,11 +24,11 @@ public class ProgmanSupervisor
         }
     } = null;
 
-    public IntPtr ProgmanHwnd
+    public nint ProgmanHwnd
     {
         get
         {
-            if (field == IntPtr.Zero)
+            if (field == 0)
                 FindHwnd();
         
             return field;
@@ -37,11 +37,11 @@ public class ProgmanSupervisor
         private set;
     }
 
-    public IntPtr WorkerWHwnd
+    public nint WorkerWHwnd
     {
         get
         {
-            if (field == IntPtr.Zero)
+            if (field == 0)
                 FindWorkerW();
         
             return field;
@@ -50,11 +50,11 @@ public class ProgmanSupervisor
         private set;
     }
 
-    public IntPtr ShellViewHwnd
+    public nint ShellViewHwnd
     {
         get
         {
-            if (field == IntPtr.Zero)
+            if (field == 0)
                 FindShellView();
 
             return field;
@@ -74,17 +74,17 @@ public class ProgmanSupervisor
     {
         ProgmanHwnd = User32.FindWindow(ProgmanName, null!);
         
-        if (ProgmanHwnd == IntPtr.Zero)
+        if (ProgmanHwnd == 0)
             throw new Exception("Progman window not found on this system.");
     }
 
     private void FindWorkerW()
     {
-        WorkerWHwnd = User32.FindWindowEx(ProgmanHwnd, IntPtr.Zero, "WorkerW", null!);
+        WorkerWHwnd = User32.FindWindowEx(ProgmanHwnd, 0, "WorkerW", null!);
     }
 
     private void FindShellView()
     {
-        ShellViewHwnd = User32.FindWindowEx(ProgmanHwnd, IntPtr.Zero, "SHELLDLL_DefView", null!);
+        ShellViewHwnd = User32.FindWindowEx(ProgmanHwnd, 0, "SHELLDLL_DefView", null!);
     }
 }

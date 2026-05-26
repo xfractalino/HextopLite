@@ -12,4 +12,7 @@ public static class DwmInterop
     
     [DllImport("dwmapi.dll")]
     public static extern int DwmFlush();
+    
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmGetWindowAttribute(nint hwnd, int attr, out int value, int size);
 }
