@@ -57,7 +57,7 @@ public class Renderer
 
     public void WaitUntilTermination()
     {
-        if (Interlocked.CompareExchange(ref _running, 0, 1) == 0)
+        if (Interlocked.CompareExchange(ref _running, 1, 1) == 0)
         {
             Console.WriteLine("Warning: the renderer is not currently running. Calling WaitUntilTermination at this " +
                               "point is almost certainly an error.");
