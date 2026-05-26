@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Windows.UI.Composition;
 using HextopLite.interop;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
@@ -7,26 +8,28 @@ using Vortice.Mathematics;
 
 namespace HextopLite.engine;
 
+/// <summary>
+///   Main class responsible for the whole rendering lifecycle. It creates, employs and destroys graphics objects.
+/// </summary>
 public class Renderer
 {
     private ID3D11Device _device = null!;
     private ID3D11DeviceContext _context = null!;
-    private ID3D11RenderTargetView _renderTargetView = null!;
-    private IDXGISwapChain _swapChain = null!;
-    private IDXGISurface1 _dxgiSurface = null!;
+    private ID3D11RasterizerState _rasterizerState = null!;
 
-    private Windows.UI.Composition.Compositor _compositor;
-    private Windows.UI.Composition.Desktop.DesktopWindowTarget _target;
-
-    private int _width, _height;
-    private nint _parentHwnd;
-    private nint _hextopHwnd;
-
-    private nint _dqController;
+    private Compositor _compositor = null!;
+    private Windows.UI.Composition.Desktop.DesktopWindowTarget _target = null!;
+    private CompositionDrawingSurface _surface = null!;
+    private ICompositionDrawingSurfaceInterop _surfaceInterop = null!;
     
     private volatile int _running;
 
-    InteropCommons.WndProc _wndProc = User32.DefWindowProc;
+    private HextopWindow _hextopWindow = null!;
+    private ShaderContext _shaderContext = null!;
+
+    private uint _width, _height;
+    
+    private ManualResetEventSlim _cleanedUpGate = new (false);
 
     public static Renderer Instance
     {
@@ -47,91 +50,177 @@ public class Renderer
     {
         Interlocked.Exchange(ref _running, 1);
 
-        var renderer = new Thread(Run);
+        var renderer = new Thread(RunWithChecks);
         renderer.SetApartmentState(ApartmentState.STA);
         renderer.Start();
-        renderer.Join();
+    }
+
+    public void WaitUntilTermination()
+    {
+        _cleanedUpGate.Wait();
     }
 
     private void Init()
     {
-        var progmanHwnd = ProgmanSupervisor.Instance.ProgmanHwnd;
+        _hextopWindow = new HextopWindow();
         
-        var progmanExStyle = User32.GetWindowLongPtr(progmanHwnd, User32.GWL_EXSTYLE);
-        if ((progmanExStyle & User32.WS_EX_NOREDIRECTIONBITMAP) != 0)
-        {
-            _parentHwnd = progmanHwnd;
-        }
-        else
-        {
-            _parentHwnd = ProgmanSupervisor.Instance.WorkerWHwnd;
-        }
-        
-        var options = new InteropCommons.DispatcherQueueOptions
-        {
-            dwSize = (uint)Marshal.SizeOf<InteropCommons.DispatcherQueueOptions>(),
-            threadType = 2,    // DQTYPE_THREAD_CURRENT
-            apartmentType = 0  // DQTAT_COM_NONE
-        };
-        Marshal.ThrowExceptionForHR(InteropCommons.CreateDispatcherQueueController(options, out _dqController));
-        
-        Console.WriteLine("Found target hwnd: {0:X}", _parentHwnd);
-        
-        User32.GetClientRect(_parentHwnd, out var rect);
-        rect.ToExtents(out _width, out _height);
-        
-        var wndClass = new User32.WNDCLASSEX
-        {
-            cbSize = (uint)Marshal.SizeOf<User32.WNDCLASSEX>(),
-            lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_wndProc),
-            lpszClassName = "HextopWindow",
-            hInstance = User32.GetModuleHandle(null)
-        };
+        _width = _hextopWindow.Width;
+        _height = _hextopWindow.Height;
 
-        User32.RegisterClassEx(ref wndClass);
-
-        _hextopHwnd = User32.CreateWindowEx(
-            User32.WS_EX_NOREDIRECTIONBITMAP,
-            "HextopWindow", null!,
-            User32.WS_VISIBLE | User32.WS_POPUP,
-            0, 0, _width, _height,
-            0, 0, 0, 0
+        // Creates a D3D device
+        D3D11.D3D11CreateDevice(
+            null,
+            DriverType.Hardware,
+#if DEBUG
+            DeviceCreationFlags.Debug |
+#endif
+            DeviceCreationFlags.BgraSupport, // This flag is required by the composition pipeline.
+            [FeatureLevel.Level_11_0],
+            out _device,
+            out _,
+            out _context
         );
-        
-        _compositor = new Windows.UI.Composition.Compositor();
+
+        var dxgiDevice = _device.QueryInterface<IDXGIDevice>();
+
+        // Creates a compositor for the Window. Windows requires this because DWM refuses to allow us to render using a
+        // custom swapchain.
+        _compositor = new Compositor();
         var interop = WinRT.CastExtensions.As<ICompositorDesktopInterop>(_compositor);
-        interop.CreateDesktopWindowTarget(_hextopHwnd, false, out var ptr);
+        interop.CreateDesktopWindowTarget(_hextopWindow.Hwnd, false, out var ptr);
         _target = Windows.UI.Composition.Desktop.DesktopWindowTarget.FromAbi(ptr);
 
         var visual = _compositor.CreateSpriteVisual();
         visual.Size = new System.Numerics.Vector2(_width, _height);
-        visual.Brush = _compositor.CreateColorBrush(Windows.UI.Color.FromArgb(255, 255, 0, 0));
         _target.Root = visual;
         
-        int style = User32.GetWindowLong(_hextopHwnd, User32.GWL_STYLE);
-        style |= (int)User32.WS_CHILD;
-        style &= (int)~User32.WS_POPUP;
-        User32.SetWindowLong(_hextopHwnd, User32.GWL_STYLE, style);
-        User32.SetParent(_hextopHwnd, _parentHwnd);
+        var compositorInterop = WinRT.CastExtensions.As<ICompositorInterop>(_compositor);
+        compositorInterop.CreateGraphicsDevice(dxgiDevice.NativePointer, out var graphicsDevicePtr);
+        var graphicsDevice = WinRT.MarshalInterface<CompositionGraphicsDevice>
+            .FromAbi(graphicsDevicePtr);
 
-        User32.SetWindowPos(_hextopHwnd, ProgmanSupervisor.Instance.ShellViewHwnd,
-            0, 0, _width, _height, User32.SWP_NOACTIVATE);
+        // We create a compatible surface to bridge Windows' composition to DirectX
+        _surface = graphicsDevice.CreateDrawingSurface(
+            new Windows.Foundation.Size(_width, _height),
+            Windows.Graphics.DirectX.DirectXPixelFormat.R8G8B8A8UIntNormalized,
+            Windows.Graphics.DirectX.DirectXAlphaMode.Premultiplied);
+
+        _surfaceInterop = WinRT.CastExtensions.As<ICompositionDrawingSurfaceInterop>(_surface);
+
+        var brush = _compositor.CreateSurfaceBrush(_surface);
+        visual.Brush = brush;
+
+        // Initialises a shader context with the default shader.
+        _shaderContext = new ShaderContext(_device, _context);
+        _shaderContext.LoadShader(Path.Combine(AppContext.BaseDirectory, "shaders", "default.hlsl"));
+        
+        var rasterizerDesc = new RasterizerDescription(CullMode.None, FillMode.Solid);
+        _rasterizerState = _device.CreateRasterizerState(rasterizerDesc);
+    }
+
+    private void RunWithChecks()
+    {
+        try
+        {
+            Run();
+        }
+        catch (COMException exception)
+        {
+            Console.WriteLine(exception.ToString());
+#if DEBUG
+            CheckGpuState();
+#endif
+            Stop();
+            Dispose();
+        }
+        finally
+        {
+            _cleanedUpGate.Set();
+        }
     }
 
     private void Run()
     {
         Init();
         
-        while (Interlocked.CompareExchange(ref _running, 1, 0) != 0 && User32.IsWindow(_hextopHwnd))
+        var textureGuid = typeof(ID3D11Texture2D).GUID;
+        
+        while (Interlocked.CompareExchange(ref _running, 1, 0) != 0 &&
+               User32.IsWindow(_hextopWindow.Hwnd))
         {
-            while (User32.PeekMessage(out InteropCommons.MSG msg, 0, 0, 0, 1))
-            {
-                if (msg.message == User32.WM_DESTROY)
-                    Stop();
+            PeekWin32Messages();
+#if DEBUG
+            CheckGpuState();
+#endif
+            
+            _surfaceInterop.BeginDraw(IntPtr.Zero, ref textureGuid, out var texturePtr, out var offset);
+            
+            _context.RSSetState(_rasterizerState);
+    
+            var texture = new ID3D11Texture2D(texturePtr);
+            var rtv = _device.CreateRenderTargetView(texture);
+    
+            _context.OMSetRenderTargets(rtv);
+            _context.RSSetViewport(offset.X, offset.Y, _width, _height);
+            _context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
+            _shaderContext.AttachCurrentShader();
 
-                User32.TranslateMessage(ref msg);
-                User32.DispatchMessage(ref msg);
-            }
+            _context.ClearRenderTargetView(rtv, new Color4(1, 0, 0, 1));
+            _context.Draw(3, 0);
+    
+            rtv.Dispose();
+            texture.Dispose();
+    
+            _surfaceInterop.EndDraw();
+        }
+        
+        Console.Write("Out of the render loop. ");
+
+        Dispose();
+    }
+    
+    private void Dispose()
+    {
+        Console.WriteLine("Now cleaning up.");
+
+        // D3D resources
+        _shaderContext.Dispose();
+        _context.Dispose();
+        _device.Dispose();
+
+        // Composition
+        _surfaceInterop = null!;
+        _surface.Dispose();
+        _target.Dispose();
+        _compositor.Dispose();
+
+        // Window
+        if (User32.IsWindow(_hextopWindow.Hwnd))
+            User32.DestroyWindow(_hextopWindow.Hwnd);
+
+        // Restore Progman
+        var progman = ProgmanSupervisor.Instance.ProgmanHwnd;
+        User32.SendMessage(progman, 0x052C, 0xD, 0x0);
+    }
+
+    private static void PeekWin32Messages()
+    {
+        while (User32.PeekMessage(out var msg, 0, 0, 0, 1))
+        {
+            User32.TranslateMessage(ref msg);
+            User32.DispatchMessage(ref msg);
         }
     }
+
+#if DEBUG
+    private void CheckGpuState()
+    {
+        var deviceRemovedReason = _device.DeviceRemovedReason;
+
+        if (deviceRemovedReason.Failure)
+        {
+            Console.WriteLine(deviceRemovedReason.Description);
+        }
+    }
+#endif
 }
