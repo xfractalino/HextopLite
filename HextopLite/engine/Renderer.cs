@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Windows.UI.Composition;
 using HextopLite.interop;
@@ -30,6 +31,8 @@ public class Renderer
     private uint _width, _height;
     
     private ManualResetEventSlim _cleanedUpGate = new (false);
+
+    private RendererMetrics _metrics;
 
     public static Renderer Instance
     {
@@ -124,7 +127,7 @@ public class Renderer
         {
             Run();
         }
-        catch (COMException exception)
+        catch (Exception exception)
         {
             Console.WriteLine(exception.ToString());
 #if DEBUG
@@ -144,6 +147,9 @@ public class Renderer
         Init();
         
         var textureGuid = typeof(ID3D11Texture2D).GUID;
+
+        _metrics = new RendererMetrics();
+        _metrics.TimerStopwatch.Start();
         
         while (Interlocked.CompareExchange(ref _running, 1, 0) != 0 &&
                User32.IsWindow(_hextopWindow.Hwnd))
@@ -154,29 +160,41 @@ public class Renderer
 #endif
             
             _surfaceInterop.BeginDraw(IntPtr.Zero, ref textureGuid, out var texturePtr, out var offset);
-            
-            _context.RSSetState(_rasterizerState);
-    
-            var texture = new ID3D11Texture2D(texturePtr);
-            var rtv = _device.CreateRenderTargetView(texture);
-    
-            _context.OMSetRenderTargets(rtv);
-            _context.RSSetViewport(offset.X, offset.Y, _width, _height);
-            _context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
-            _shaderContext.AttachCurrentShader();
-
-            _context.ClearRenderTargetView(rtv, new Color4(1, 0, 0, 1));
-            _context.Draw(3, 0);
-    
-            rtv.Dispose();
-            texture.Dispose();
-    
+            Render(texturePtr, offset);
             _surfaceInterop.EndDraw();
+            
+            // This waits for DWM to finish compositing, thus throttling the rendering loop and syncing it to the
+            // monitor's refresh rate.
+            var hr = DwmInterop.DCompositionWaitForCompositorClock(0, null, ~0u);
+            Marshal.ThrowExceptionForHR(hr);
+
+            _metrics.SnapshotMetrics();
+            
+            Console.WriteLine(_metrics.Fps);
         }
         
         Console.Write("Out of the render loop. ");
 
         Dispose();
+    }
+
+    private void Render(nint texturePtr, InteropCommons.POINT offset)
+    {
+        _context.RSSetState(_rasterizerState);
+    
+        var texture = new ID3D11Texture2D(texturePtr);
+        var rtv = _device.CreateRenderTargetView(texture);
+    
+        _context.OMSetRenderTargets(rtv);
+        _context.RSSetViewport(offset.X, offset.Y, _width, _height);
+        _context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
+        _shaderContext.AttachCurrentShader();
+
+        _context.ClearRenderTargetView(rtv, new Color4(1, 0, 0));
+        _context.Draw(3, 0);
+    
+        rtv.Dispose();
+        texture.Dispose();
     }
     
     private void Dispose()
@@ -223,4 +241,18 @@ public class Renderer
         }
     }
 #endif
+
+    public sealed class RendererMetrics
+    {
+        internal readonly Stopwatch TimerStopwatch = new();
+        public TimeSpan FrameTime { get; internal set; }
+
+        public double Fps => 1.0 / FrameTime.TotalSeconds;
+
+        internal void SnapshotMetrics()
+        {
+            FrameTime = TimerStopwatch.Elapsed;
+            TimerStopwatch.Restart();
+        }
+    }
 }
