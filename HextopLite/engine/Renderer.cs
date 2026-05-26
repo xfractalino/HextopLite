@@ -15,6 +15,7 @@ public class Renderer
 {
     private ID3D11Device _device = null!;
     private ID3D11DeviceContext _context = null!;
+    private ID3D11RasterizerState _rasterizerState = null!;
 
     private Compositor _compositor = null!;
     private Windows.UI.Composition.Desktop.DesktopWindowTarget _target = null!;
@@ -113,7 +114,8 @@ public class Renderer
         _shaderContext = new ShaderContext(_device, _context);
         _shaderContext.LoadShader(Path.Combine(AppContext.BaseDirectory, "shaders", "default.hlsl"));
         
-        // We're going to use triangle lists only.
+        var rasterizerDesc = new RasterizerDescription(CullMode.None, FillMode.Solid);
+        _rasterizerState = _device.CreateRasterizerState(rasterizerDesc);
     }
 
     private void RunWithChecks()
@@ -152,6 +154,8 @@ public class Renderer
 #endif
             
             _surfaceInterop.BeginDraw(IntPtr.Zero, ref textureGuid, out var texturePtr, out var offset);
+            
+            _context.RSSetState(_rasterizerState);
     
             var texture = new ID3D11Texture2D(texturePtr);
             var rtv = _device.CreateRenderTargetView(texture);
@@ -161,7 +165,7 @@ public class Renderer
             _context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
             _shaderContext.AttachCurrentShader();
 
-            _context.ClearRenderTargetView(rtv, new Color4(1, 0, 0));
+            _context.ClearRenderTargetView(rtv, new Color4(1, 0, 0, 1));
             _context.Draw(3, 0);
     
             rtv.Dispose();
