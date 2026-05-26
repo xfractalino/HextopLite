@@ -5,6 +5,9 @@ using Vortice.Direct3D11;
 
 namespace HextopLite.engine;
 
+/// <summary>
+///   This class contains the current shader being rendered on the background.
+/// </summary>
 internal class ShaderContext
 {
     private readonly ID3D11Device _device;

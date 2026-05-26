@@ -4,6 +4,9 @@ using HextopLite.interop;
 
 namespace HextopLite.engine;
 
+/// <summary>
+///   The window that gets injected on the background.
+/// </summary>
 public class HextopWindow
 {
     private const string HextopClassName = "HextopWindow";

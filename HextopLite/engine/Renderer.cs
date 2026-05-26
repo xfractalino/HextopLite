@@ -8,6 +8,9 @@ using Vortice.Mathematics;
 
 namespace HextopLite.engine;
 
+/// <summary>
+///   Main class responsible for the whole rendering lifecycle. It creates, employs and destroys graphics objects.
+/// </summary>
 public class Renderer
 {
     private ID3D11Device _device = null!;
