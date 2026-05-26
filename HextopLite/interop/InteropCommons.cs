@@ -24,7 +24,7 @@ public static class InteropCommons
     public struct MSG { public IntPtr hWnd, wParam, lParam; public uint message, time; public POINT pt; }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct POINT { public int x, y; }
+    public struct POINT { public int X, Y; }
     // ReSharper enable InconsistentNaming
     
     [StructLayout(LayoutKind.Sequential)]

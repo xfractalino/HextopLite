@@ -6,6 +6,7 @@ public static class User32
 {
     // ReSharper disable InconsistentNaming
     public const uint WM_DESTROY = 0x0002;
+    public const uint WM_CLOSE = 0x0010;
 
     public const uint WS_POPUP = 0x80000000;
     public const uint WS_CHILD = 0x40000000;
@@ -26,74 +27,77 @@ public static class User32
     // ReSharper enable InconsistentNaming
     
     [DllImport("user32.dll")]
-    public static extern IntPtr FindWindow(string cls, string win);
+    public static extern nint FindWindow(string cls, string win);
 
     [DllImport("user32.dll")]
-    public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string win);
+    public static extern nint FindWindowEx(nint parent, nint after, string cls, string win);
 
     [DllImport("user32.dll")]
-    public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr w, IntPtr l);
+    public static extern nint SendMessage(nint hWnd, uint msg, nint w, nint l);
 
     [DllImport("user32.dll")]
-    public static extern IntPtr SetParent(IntPtr child, IntPtr newParent);
+    public static extern nint SetParent(nint child, nint newParent);
 
     [DllImport("user32.dll")]
-    public static extern bool EnumWindows(InteropCommons.EnumWindowsProc proc, IntPtr lParam);
+    public static extern bool EnumWindows(InteropCommons.EnumWindowsProc proc, nint lParam);
 
     [DllImport("user32.dll")]
-    public static extern bool IsWindowVisible(IntPtr hWnd);
+    public static extern bool IsWindowVisible(nint hWnd);
     
     [DllImport("user32.dll")]
-    public static extern bool GetClientRect(IntPtr hWnd, out InteropCommons.RECT rect);
+    public static extern bool GetClientRect(nint hWnd, out InteropCommons.RECT rect);
     
     [DllImport("user32.dll")]
-    public static extern bool PeekMessage(out InteropCommons.MSG msg, IntPtr hWnd, uint min, uint max, uint remove);
+    public static extern bool PeekMessage(out InteropCommons.MSG msg, nint hWnd, uint min, uint max, uint remove);
 
     [DllImport("user32.dll")]
     public static extern bool TranslateMessage(ref InteropCommons.MSG msg);
 
     [DllImport("user32.dll")]
-    public static extern IntPtr DispatchMessage(ref InteropCommons.MSG msg);
+    public static extern nint DispatchMessage(ref InteropCommons.MSG msg);
 
     [DllImport("user32.dll")]
-    public static extern IntPtr GetDC(IntPtr hWnd);
+    public static extern nint GetDC(nint hWnd);
 
     [DllImport("user32.dll")]
-    public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+    public static extern int ReleaseDC(nint hWnd, nint hDC);
     
     [DllImport("user32.dll")]
-    public static extern IntPtr CreateWindowEx(
+    public static extern nint CreateWindowEx(
         int exStyle, string className, string windowName,
         uint style, int x, int y, int width, int height,
-        IntPtr parent, IntPtr menu, IntPtr instance, IntPtr param);
+        nint parent, nint menu, nint instance, nint param);
     
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern ushort RegisterClassEx(ref WNDCLASSEX lpwcx);
 
     [DllImport("user32.dll")]
-    public static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    public static extern nint DefWindowProc(nint hWnd, uint msg, nint wParam, nint lParam);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-    public static extern IntPtr GetModuleHandle(string? lpModuleName);
+    public static extern nint GetModuleHandle(string? lpModuleName);
 
     [DllImport("user32.dll")]
-    public static extern bool IsWindow(IntPtr hWnd);
+    public static extern bool IsWindow(nint hWnd);
     
     [DllImport("user32.dll")]
-    public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+    public static extern int GetWindowLong(nint hWnd, int nIndex);
 
     [DllImport("user32.dll")]
-    public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+    public static extern int SetWindowLong(nint hWnd, int nIndex, int dwNewLong);
 
     [DllImport("user32.dll", SetLastError = true)]
-    public static extern long GetWindowLongPtr(IntPtr hWnd, int nIndex);
+    public static extern long GetWindowLongPtr(nint hWnd, int nIndex);
 
     [DllImport("user32.dll")]
-    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy,
+    public static extern bool SetWindowPos(nint hWnd, nint hWndInsertAfter, int x, int y, int cx, int cy,
         uint uFlags);
+
+    [DllImport("user32.dll")]
+    public static extern bool DestroyWindow(nint hWnd);
     
     [DllImport("user32.dll")]
-    public static extern int FillRect(IntPtr hdc, ref InteropCommons.RECT rect, IntPtr hbr);
+    public static extern int FillRect(nint hdc, ref InteropCommons.RECT rect, nint hbr);
     
     [DllImport("user32.dll")]
     public static extern void PostQuitMessage(int nExitCode);
@@ -104,16 +108,16 @@ public static class User32
     {
         public uint cbSize;
         public uint style;
-        public IntPtr lpfnWndProc;
+        public nint lpfnWndProc;
         public int cbClsExtra;
         public int cbWndExtra;
-        public IntPtr hInstance;
-        public IntPtr hIcon;
-        public IntPtr hCursor;
-        public IntPtr hbrBackground;
+        public nint hInstance;
+        public nint hIcon;
+        public nint hCursor;
+        public nint hbrBackground;
         public string? lpszMenuName;
         public string lpszClassName;
-        public IntPtr hIconSm;
+        public nint hIconSm;
     }
     // ReSharper enable InconsistentNaming
 }

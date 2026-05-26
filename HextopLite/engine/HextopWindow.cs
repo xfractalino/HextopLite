@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Windows.System;
 using HextopLite.interop;
 
 namespace HextopLite.engine;
@@ -6,9 +7,6 @@ namespace HextopLite.engine;
 public class HextopWindow
 {
     private const string HextopClassName = "HextopWindow";
-    
-    private Windows.UI.Composition.Compositor _compositor = null!;
-    private Windows.UI.Composition.Desktop.DesktopWindowTarget _target = null!;
 
     private int _width, _height;
     private nint _parentHwnd;
@@ -68,16 +66,6 @@ public class HextopWindow
             return;
         }
         
-        _compositor = new Windows.UI.Composition.Compositor();
-        var interop = WinRT.CastExtensions.As<ICompositorDesktopInterop>(_compositor);
-        interop.CreateDesktopWindowTarget(_hextopHwnd, false, out var ptr);
-        _target = Windows.UI.Composition.Desktop.DesktopWindowTarget.FromAbi(ptr);
-
-        var visual = _compositor.CreateSpriteVisual();
-        visual.Size = new System.Numerics.Vector2(_width, _height);
-        visual.Brush = _compositor.CreateColorBrush(Windows.UI.Color.FromArgb(255, 255, 0, 0));
-        _target.Root = visual;
-        
         int style = User32.GetWindowLong(_hextopHwnd, User32.GWL_STYLE);
         style |= (int)User32.WS_CHILD;
         style &= (int)~User32.WS_POPUP;
@@ -90,16 +78,20 @@ public class HextopWindow
 
     public nint Hwnd => _hextopHwnd;
 
+    public uint Width => (uint)_width;
+    public uint Height => (uint)_height;
+
     private static nint WndProc(nint hwnd, uint msg, nint wParam, nint lParam)
     {
         switch (msg)
         {
+            case User32.WM_CLOSE:
+                Console.WriteLine("Close message received.");
+                User32.DestroyWindow(hwnd);
+                break;
             case User32.WM_DESTROY:
-                Console.WriteLine("Destroy message received. Stopping the renderer.");
-                
                 Renderer.Instance.Stop();
                 User32.PostQuitMessage(0);
-
                 return 0;
         }
 

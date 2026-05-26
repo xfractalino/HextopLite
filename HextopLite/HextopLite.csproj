@@ -14,4 +14,10 @@
       <PackageReference Include="Vortice.DXGI" Version="3.8.3" />
     </ItemGroup>
 
+    <ItemGroup>
+        <None Update="shaders\default.hlsl">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
 </Project>
