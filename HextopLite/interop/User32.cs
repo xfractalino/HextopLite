@@ -32,7 +32,7 @@ public static class User32
     public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string win);
 
     [DllImport("user32.dll")]
-    public static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr w, IntPtr l);
+    public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr w, IntPtr l);
 
     [DllImport("user32.dll")]
     public static extern IntPtr SetParent(IntPtr child, IntPtr newParent);
@@ -94,6 +94,9 @@ public static class User32
     
     [DllImport("user32.dll")]
     public static extern int FillRect(IntPtr hdc, ref InteropCommons.RECT rect, IntPtr hbr);
+    
+    [DllImport("user32.dll")]
+    public static extern void PostQuitMessage(int nExitCode);
     
     // ReSharper disable InconsistentNaming
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
