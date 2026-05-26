@@ -50,11 +50,14 @@ internal class ShaderContext
 
     internal void AttachCurrentShader()
     {
-        if (_vertexShaderHandle == null || _fragmentShaderHandle == null)
+        if (_vertexShaderHandle == null || _fragmentShaderHandle == null || 
+            _vertexShaderHandle?.NativePointer == 0 || _fragmentShaderHandle?.NativePointer == 0)
+        {
+#if DEBUG
+            Console.WriteLine("One of the shader pointers is null. Skipping attachment.");
+#endif
             return;
-
-        if (_vertexShaderHandle?.NativePointer == 0 || _fragmentShaderHandle?.NativePointer == 0)
-            return;
+        }
         
         _context.VSSetShader(_vertexShaderHandle);
         _context.PSSetShader(_fragmentShaderHandle);

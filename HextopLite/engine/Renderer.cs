@@ -67,6 +67,9 @@ public class Renderer
         D3D11.D3D11CreateDevice(
             null,
             DriverType.Hardware,
+#if DEBUG
+            DeviceCreationFlags.Debug |
+#endif
             DeviceCreationFlags.BgraSupport, // This flag is required by the composition pipeline.
             [FeatureLevel.Level_11_0],
             out _device,
@@ -108,7 +111,6 @@ public class Renderer
         _shaderContext.LoadShader(Path.Combine(AppContext.BaseDirectory, "shaders", "default.hlsl"));
         
         // We're going to use triangle lists only.
-        _context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
     }
 
     private void RunWithChecks()
@@ -153,8 +155,10 @@ public class Renderer
     
             _context.OMSetRenderTargets(rtv);
             _context.RSSetViewport(offset.X, offset.Y, _width, _height);
+            _context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
             _shaderContext.AttachCurrentShader();
-            _context.ClearRenderTargetView(rtv, new Color4(0, 0, 0));
+
+            _context.ClearRenderTargetView(rtv, new Color4(1, 0, 0));
             _context.Draw(3, 0);
     
             rtv.Dispose();
