@@ -12,13 +12,13 @@ class Program
 
         Console.CancelKeyPress += (_, _) => OnCancelKeyPress();
         
-        Renderer.Instance.Start();
-        Renderer.Instance.WaitUntilTermination();
+        RenderingEngine.Instance.Start();
+        RenderingEngine.Instance.WaitUntilTermination();
     }
 
     private static void OnCancelKeyPress()
     {
-        Renderer.Instance.Stop();
-        Renderer.Instance.WaitUntilTermination();
+        RenderingEngine.Instance.Stop();
+        RenderingEngine.Instance.WaitUntilTermination();
     }
 }

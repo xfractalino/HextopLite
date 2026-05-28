@@ -1,6 +1,6 @@
 using HextopLite.interop;
 
-namespace HextopLite.engine;
+namespace HextopLite.engine.windows;
 
 public class ProgmanSupervisor
 {

@@ -2,10 +2,10 @@ using System.Runtime.InteropServices;
 using Windows.System;
 using HextopLite.interop;
 
-namespace HextopLite.engine;
+namespace HextopLite.engine.windows;
 
 /// <summary>
-///   The window that gets injected on the background.
+///   The window that gets injected on the background in Windows.
 /// </summary>
 public class HextopWindow
 {
@@ -15,6 +15,7 @@ public class HextopWindow
     private nint _parentHwnd;
     private nint _hextopHwnd;
 
+    // ReSharper disable once NotAccessedField.Local
     private nint _dqController;
 
     private readonly InteropCommons.WndProc _wndProc = WndProc;
@@ -93,7 +94,7 @@ public class HextopWindow
                 User32.DestroyWindow(hwnd);
                 break;
             case User32.WM_DESTROY:
-                Renderer.Instance.Stop();
+                RenderingEngine.Instance.Stop();
                 User32.PostQuitMessage(0);
                 return 0;
         }
