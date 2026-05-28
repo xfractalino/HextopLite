@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Windows.UI.Composition;
 using HextopLite.engine.windows;
@@ -21,6 +22,8 @@ public class RenderingEngine
     private readonly ManualResetEventSlim _cleanedUpGate = new (false);
 
     private readonly Settings _settings = Settings.Default;
+    
+    private RenderingMetrics _metrics;
 
     public static RenderingEngine Instance
     {
@@ -100,10 +103,18 @@ public class RenderingEngine
     {
         Init();
         
+        _metrics = new RenderingMetrics();
+        _metrics.TimerStopwatch.Start();
+        
         while (Interlocked.CompareExchange(ref _running, 1, 0) != 0 && _renderingContext.IsValid())
         {
             _renderingContext.PreRender();
             _renderingContext.Render();
+            
+            var hr = DwmInterop.DCompositionWaitForCompositorClock(0, null, ~0u);
+            Marshal.ThrowExceptionForHR(hr);
+            
+            _metrics.SnapshotMetrics();
         }
         
         Console.Write("Out of the render loop. ");
@@ -117,5 +128,19 @@ public class RenderingEngine
 
         // D3D resources
         _renderingContext.Dispose();
+    }
+    
+    public sealed class RenderingMetrics
+    {
+        internal readonly Stopwatch TimerStopwatch = new();
+        public TimeSpan FrameTime { get; internal set; }
+
+        public double Fps => 1.0 / FrameTime.TotalSeconds;
+
+        internal void SnapshotMetrics()
+        {
+            FrameTime = TimerStopwatch.Elapsed;
+            TimerStopwatch.Restart();
+        }
     }
 }
