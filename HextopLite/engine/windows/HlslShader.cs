@@ -3,12 +3,9 @@ using Vortice.D3DCompiler;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 
-namespace HextopLite.engine;
+namespace HextopLite.engine.windows;
 
-/// <summary>
-///   This class contains the current shader being rendered on the background.
-/// </summary>
-internal class ShaderContext
+public class HlslShader : IShader
 {
     private readonly ID3D11Device _device;
     private readonly ID3D11DeviceContext _context;
@@ -16,14 +13,20 @@ internal class ShaderContext
     private ID3D11VertexShader? _vertexShaderHandle;
     private ID3D11PixelShader? _fragmentShaderHandle;
 
-    internal ShaderContext(ID3D11Device device, ID3D11DeviceContext context)
+    public HlslShader()
+    {
+        throw new NotImplementedException("The constructor taking device and context must be used instead.");
+    }
+
+    public HlslShader(ID3D11Device device, ID3D11DeviceContext context)
     {
         _device = device;
         _context = context;
     }
-
-    internal void LoadShader(string hlslPath)
+    
+    public void Load(string path)
     {
+        var hlslPath = path;
         var result = Compiler.CompileFromFile(hlslPath, "VSMain", "vs_5_0", out var vsBlob, out var errorBlob);
 
         if (!ShaderCompileCheck(result, errorBlob))
@@ -47,11 +50,10 @@ internal class ShaderContext
             
             Console.WriteLine("Error compiling shader \"{0}\": {1}", hlslPath, errorMessage);
             return false;
-
         }
     }
 
-    internal void AttachCurrentShader()
+    public void Attach()
     {
         if (_vertexShaderHandle == null || _fragmentShaderHandle == null || 
             _vertexShaderHandle?.NativePointer == 0 || _fragmentShaderHandle?.NativePointer == 0)
@@ -66,7 +68,13 @@ internal class ShaderContext
         _context.PSSetShader(_fragmentShaderHandle);
     }
 
-    internal void Dispose()
+    public void Detach()
+    {
+        _context.VSSetShader(null);
+        _context.PSSetShader(null);
+    }
+
+    public void Dispose()
     {
         _vertexShaderHandle?.Dispose();
         _fragmentShaderHandle?.Dispose();
