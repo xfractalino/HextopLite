@@ -5,8 +5,8 @@ namespace HextopLite.interop;
 public static class InteropCommons
 {
     // ReSharper disable InconsistentNaming
-    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-    public delegate IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    public delegate bool EnumWindowsProc(nint hWnd, nint lParam);
+    public delegate nint WndProc(nint hWnd, uint msg, nint wParam, nint lParam);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT
@@ -21,7 +21,7 @@ public static class InteropCommons
     }
     
     [StructLayout(LayoutKind.Sequential)]
-    public struct MSG { public IntPtr hWnd, wParam, lParam; public uint message, time; public POINT pt; }
+    public struct MSG { public nint hWnd, wParam, lParam; public uint message, time; public POINT pt; }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT { public int X, Y; }
@@ -38,8 +38,5 @@ public static class InteropCommons
     [DllImport("CoreMessaging.dll")]
     public static extern int CreateDispatcherQueueController(
         DispatcherQueueOptions options,
-        out IntPtr dispatcherQueueController);
-    
-    [DllImport("dwmapi.dll")]
-    public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out int value, int size);
+        out nint dispatcherQueueController);
 }
