@@ -1,3 +1,10 @@
+cbuffer FrameData : register(b0)
+{
+    float time;
+    float delta_time;
+    float2 resolution;
+}
+
 struct VSOutput
 {
     float4 Position : SV_Position;

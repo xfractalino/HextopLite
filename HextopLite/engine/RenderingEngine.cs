@@ -130,11 +130,35 @@ public class RenderingEngine
         internal readonly Stopwatch TimerStopwatch = new();
         public TimeSpan FrameTime { get; internal set; }
 
-        public double Fps => 1.0 / FrameTime.TotalSeconds;
+        /// <summary>
+        ///   This is used as the time taken by the shader to fulfill an entire cycle. Every frame, the TimeCount gets
+        ///   wrapped around this value to avoid floating point errors, especially because TimeCount is passed to the
+        ///   shader with a 32-bit precision.
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     The default value is double.NaN. This special value disables time wrapping.
+        ///   </para>>
+        /// </remarks>>
+        public double TimeCycle = double.NaN;
+        
+        /// <summary>
+        ///   The total count, in seconds, of shader execution. If the shader loops, set up TimeCycle to make the count
+        ///   wrap around that value and avoid possible floating point errors due to a high count when the shader is
+        ///   running for too long.
+        /// </summary>
+        public double TimeCount;
+        public double FrameTimeSeconds => FrameTime.TotalSeconds;
+        public double Fps => 1.0 / FrameTimeSeconds;
 
         internal void SnapshotMetrics()
         {
             FrameTime = TimerStopwatch.Elapsed;
+            TimeCount += FrameTime.TotalSeconds;
+
+            if (!double.IsNaN(TimeCycle))
+                TimeCount %= TimeCycle;
+            
             TimerStopwatch.Restart();
         }
     }
