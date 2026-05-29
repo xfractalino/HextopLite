@@ -1,4 +1,4 @@
-namespace HextopLite.engine;
+namespace HextopLite.engine.graphics;
 
 public interface IRenderingResource
 {
