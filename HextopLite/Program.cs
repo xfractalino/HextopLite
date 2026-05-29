@@ -8,7 +8,7 @@ class Program
     {
         _ = args;
         
-        Console.WriteLine("Hextop Lite - (C) 2026 Francesco Sollazzi");
+        Console.WriteLine("Hextop Lite - (C) 2026 xfractalino");
 
         Console.CancelKeyPress += (_, _) => OnCancelKeyPress();
         

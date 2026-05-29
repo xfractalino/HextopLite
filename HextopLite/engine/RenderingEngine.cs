@@ -1,12 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Windows.UI.Composition;
 using HextopLite.engine.windows;
 using HextopLite.interop;
-using Vortice.Direct3D;
-using Vortice.Direct3D11;
-using Vortice.DXGI;
-using Vortice.Mathematics;
 
 namespace HextopLite.engine;
 
@@ -23,7 +18,7 @@ public class RenderingEngine
 
     private readonly Settings _settings = Settings.Default;
     
-    private RenderingMetrics _metrics;
+    private RenderingMetrics _metrics = null!;
 
     public static RenderingEngine Instance
     {

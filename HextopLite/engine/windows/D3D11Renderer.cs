@@ -15,8 +15,8 @@ public class D3D11Renderer : IRenderer
     private IDXGIDevice _dxgiDevice = null!;
 
     internal IDXGIDevice DxgiDevice => _dxgiDevice;
-    
-    internal WindowsCompositor Compositor { get; set; }
+
+    internal WindowsCompositor Compositor { get; set; } = null!;
 
     private nint _surfaceTextureHandle;
     private InteropCommons.POINT _surfaceTextureOffset;
