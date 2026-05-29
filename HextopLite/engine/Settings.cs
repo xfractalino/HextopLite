@@ -1,3 +1,5 @@
+using HextopLite.engine.graphics;
+
 namespace HextopLite.engine;
 
 public class Settings

@@ -1,10 +1,10 @@
 using System.Runtime.CompilerServices;
+using HextopLite.engine.graphics;
 using HextopLite.interop;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 using Vortice.Mathematics;
-using Color = System.Drawing.Color;
 
 namespace HextopLite.engine.windows;
 

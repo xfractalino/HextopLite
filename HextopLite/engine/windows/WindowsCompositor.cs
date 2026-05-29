@@ -1,4 +1,5 @@
 using Windows.UI.Composition;
+using HextopLite.engine.graphics;
 using HextopLite.interop;
 using Vortice.DXGI;
 

@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.InteropServices;
+using HextopLite.engine.graphics;
 using HextopLite.engine.windows;
 using HextopLite.interop;
 
@@ -17,8 +19,8 @@ public class RenderingEngine
     private readonly ManualResetEventSlim _cleanedUpGate = new (false);
 
     private readonly Settings _settings = Settings.Default;
-    
-    private RenderingMetrics _metrics = null!;
+
+    public RenderingMetrics Metrics { get; private set; } = null!;
 
     public static RenderingEngine Instance
     {
@@ -98,18 +100,20 @@ public class RenderingEngine
     {
         Init();
         
-        _metrics = new RenderingMetrics();
-        _metrics.TimerStopwatch.Start();
+        Metrics = new RenderingMetrics();
+        Metrics.TimerStopwatch.Start();
         
         while (Interlocked.CompareExchange(ref _running, 1, 0) != 0 && _renderingContext.IsValid())
         {
+            double delta = Metrics.FrameTimeSeconds;
+            
             _renderingContext.PreRender();
-            _renderingContext.Render();
+            _renderingContext.Render(delta);
             
             var hr = DwmInterop.DCompositionWaitForCompositorClock(0, null, ~0u);
             Marshal.ThrowExceptionForHR(hr);
             
-            _metrics.SnapshotMetrics();
+            Metrics.SnapshotMetrics();
         }
         
         Console.Write("Out of the render loop. ");

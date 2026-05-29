@@ -1,3 +1,4 @@
+using HextopLite.engine.graphics;
 using SharpGen.Runtime;
 using Vortice.D3DCompiler;
 using Vortice.Direct3D;
@@ -73,6 +74,8 @@ public class HlslShader : IShader
         _context.VSSetShader(null);
         _context.PSSetShader(null);
     }
+
+    public IUniformBuffer CreateUniformBuffer(uint sizeBytes) => new HlslUniformBuffer(_device, _context, sizeBytes);
 
     public void Dispose()
     {

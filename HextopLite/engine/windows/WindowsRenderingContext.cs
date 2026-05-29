@@ -1,21 +1,35 @@
+using HextopLite.engine.graphics;
 using HextopLite.interop;
-using Vortice.Direct3D;
-using Vortice.Direct3D11;
+using HextopLite.wallpaper;
 using Vortice.Mathematics;
-using Color = System.Drawing.Color;
 
 namespace HextopLite.engine.windows;
 
+/// <summary>
+///   This represents a wallpaper rendering context on Windows.
+/// </summary>
 public class WindowsRenderingContext : IRenderingContext
 {
-    public IRenderer Renderer { get; private set; }
-    
+    public IRenderer Renderer { get; private set; } = null!;
+
+    public Scene? Scene
+    {
+        get;
+        set
+        {
+            value?.RenderingContext = this;
+            value?.OnInit();
+            field = value;
+        }
+    }
+
     private HextopWindow _hextopWindow = null!;
     private WindowsCompositor _compositor = null!;
 
     private uint _width, _height;
-    
-    private IShader _defaultShader = null!;
+
+    public uint Width => _width;
+    public uint Height => _height;
 
     public void Initialize(RendererType rendererType)
     {
@@ -42,10 +56,10 @@ public class WindowsRenderingContext : IRenderingContext
         _compositor.Initialize();
 
         renderer.Compositor = _compositor;
-
-        _defaultShader = renderer.CreateShader(Path.Combine(AppContext.BaseDirectory, "shaders", "default.hlsl"));
         
         renderer.SetRasterizerDescription(IRenderer.CullMode.None, IRenderer.FillMode.Solid);
+
+        Scene = new WallpaperScene();
     }
 
     public void PreRender()
@@ -53,16 +67,15 @@ public class WindowsRenderingContext : IRenderingContext
         PeekWin32Messages();
     }
 
-    public void Render()
+    public void Render(double delta)
     {
         Renderer.BeginDraw();
         Renderer.SetViewport(0, 0, _width, _height);
         Renderer.SetTopology(IRenderer.Topology.TriangleList);
-        _defaultShader.Attach();
-
         Renderer.Clear(new Color4(1, 0, 0));
-        Renderer.Draw(3, 0);
-
+        
+        Scene?.Render(delta);
+        
         Renderer.EndDraw();
     }
 

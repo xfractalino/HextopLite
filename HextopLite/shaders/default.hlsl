@@ -22,5 +22,11 @@ VSOutput VSMain(uint vertexID : SV_VertexID)
 
 float4 PSMain(VSOutput input) : SV_Target
 {
-    return float4(input.UV, 0.0, 1.0);
+    float2 t = input.UV + time * 0.5;
+    t *= 2.0;
+    float r = sin(t.x);
+    r *= r;
+    float g = cos(t.y);
+    g *= g;
+    return float4(r, g, 0.0, 1.0);
 }

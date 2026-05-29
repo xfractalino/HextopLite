@@ -1,7 +1,7 @@
 using System.Drawing;
 using Vortice.Mathematics;
 
-namespace HextopLite.engine;
+namespace HextopLite.engine.graphics;
 
 public interface IRenderer : IRenderingResource
 {
